@@ -99,11 +99,11 @@ if len(argv) >= 2:
     moire_potential_phi = float(argv[7]) # potential shape angle in degrees
     network_type = argv[8]
 else:
-    nspins = [6, 0]
-    num_unit_cells = 9
+    nspins = [6, 6]
+    num_unit_cells = 4
     me_eff_rel = 0.35 # in units of bare electron mass
-    eps_inverse = 0.2 # inverse dielectric constant of surrounding dielectric
-    moire_lattice_constant_nm = 8.031 # in nm
+    eps_inverse = 0.25 # inverse dielectric constant of surrounding dielectric
+    moire_lattice_constant_nm = 8.0 # in nm
     moire_potential_strength_meV = 15 # in meV
     moire_potential_phi = 45 # potential shape angle in degrees
     network_type = "CustomPsiformer" # "SlaterNet", "CustomPsiformer"
@@ -150,13 +150,13 @@ cfg.batch_size = 1024
 # learning rate parameters
 cfg.optim.optimizer  = 'kfac'
 cfg.optim.objective  = 'vmc'
-cfg.optim.iterations = 200000
+cfg.optim.iterations = 150000
 cfg.optim.lr.rate    = 0.1
 cfg.optim.lr.delay   = 20000
 cfg.optim.lr.decay   = 1.0
 
 # logging parameters
-cfg.log.save_frequency = 30.0 # minutes
+cfg.log.save_frequency = 5.0 # minutes
 
 # mcmc parameters
 cfg.mcmc.burn_in    = 300
@@ -169,7 +169,7 @@ cfg.mcmc.move_width_updater = 'adaptive'
 cfg.network.complex = True # complex wavefunction work better for pbc systems
 cfg.network.determinants = 4
 cfg.network.jastrow = "NONE"
-cfg.network.jastrow_kwargs = {'ndim':cfg.system.ndim}
+cfg.network.jastrow_kwargs = {'ndim':cfg.system.ndim, 'interaction_strength': 1.0}
 
 # network architecture parameters
 # Code to run Psiformer

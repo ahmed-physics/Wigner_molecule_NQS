@@ -114,8 +114,8 @@ num_unit_cells = 4
 nspins = (6, 6)
 num_electrons = sum(nspins)
 me_eff_rel = 0.35 # in units of bare electron mass
-eps_inverse = 0.125 # inverse dielectric constant of surrounding dielectric
-moire_lattice_constant_nm = 8.031 # in nm
+eps_inverse = 0.25 # inverse dielectric constant of surrounding dielectric
+moire_lattice_constant_nm = 8.0 # in nm
 moire_potential_strength_meV = 15 # in meV
 moire_potential_phi = 45 # potential shape angle in degrees
 
@@ -146,7 +146,7 @@ ax_n.scatter(positions_plot[:,0], positions_plot[:,1], color="tab:blue", s=1, al
 ax_n.set_xlabel("x / a_M")
 ax_n.set_ylabel("y / a_M")
 ax_n.set_title("Electron density")
-plt.savefig('density_plot2.pdf', bbox_inches='tight')
+plt.savefig('density_plot.pdf', bbox_inches='tight')
 plt.close()
 
 # compute density-density correlator \int dR <n(R + dr/2) n(R - dr/2)>
@@ -163,5 +163,5 @@ ax_nn.scatter(relative_positions[:,0], relative_positions[:,1], color="tab:blue"
 ax_nn.set_xlabel("x / a_M")
 ax_nn.set_ylabel("y / a_M")
 ax_nn.set_title("Density-density correlation")
-plt.savefig('density_corr2.pdf', bbox_inches='tight')
+plt.savefig('density_corr.pdf', bbox_inches='tight')
 plt.close()

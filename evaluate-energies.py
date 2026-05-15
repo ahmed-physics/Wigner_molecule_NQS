@@ -75,8 +75,8 @@ num_unit_cells = 4
 nspins = (6, 6)
 num_electrons = sum(nspins)
 me_eff_rel = 0.35 # in units of bare electron mass
-eps_inverse = 0.125 # inverse dielectric constant of surrounding dielectric
-moire_lattice_constant_nm = 8.031 # in nm
+eps_inverse = 0.25 # inverse dielectric constant of surrounding dielectric
+moire_lattice_constant_nm = 8.0 # in nm
 moire_potential_strength_meV = 15 # in meV
 moire_potential_phi = 45 # potential shape angle in degrees
 
@@ -91,5 +91,5 @@ fig, ax = plt.subplots(1,1, figsize = (7,5))
 ax.plot(train_data['step'][1000:], train_data['energy'][1000:] * energy_scale / num_electrons, marker='o', linestyle='-', linewidth=0.4, markersize=1, alpha=0.4)
 ax.set_xlabel("step")
 ax.set_ylabel("energy (meV)")
-plt.savefig('energy_plot2.pdf', bbox_inches='tight')
+plt.savefig('energy_plot.pdf', bbox_inches='tight')
 plt.close()

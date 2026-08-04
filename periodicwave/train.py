@@ -39,6 +39,7 @@ from periodicwave import mcmc
 from periodicwave import networks
 from periodicwave import CustomPsiformer
 from periodicwave import SlaterNet
+from periodicwave import observables
 from periodicwave.utils import statistics
 from periodicwave.utils import utils
 from periodicwave.utils import writers
@@ -500,7 +501,7 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
     mcmc_width_ckpt = None
 
   # Set up logging and observables
-  train_schema = ['step', 'energy', 'ewmean', 'ewvar', 'pmove', 'locstd']
+  train_schema = ['step', 'energy', 'ewmean', 'ewvar', 'pmove', 'locstd', 's2_mean', 's2_var']
 
   # Initialisation done. We now want to have different PRNG streams on each
   # device. Shard the key over devices
@@ -541,6 +542,12 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
       center_at_clipped_energy=cfg.optim.center_at_clip,
       complex_output=use_complex,
   )
+# --- NEW: Setup S^2 Evaluator ---
+  evaluate_s2_freq = cfg.log.get('evaluate_s2_frequency', 0)
+  if evaluate_s2_freq > 0:
+      local_s2_fn = observables.make_local_spin_squared(signed_network, nspins)
+      pevaluate_s2 = constants.pmap(observables.make_s2_evaluation(local_s2_fn))
+  # --------------------------------
 
   # Compute the learning rate
   def learning_rate_schedule(t_: jnp.ndarray) -> jnp.ndarray:
@@ -719,6 +726,16 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
 
       # Logging
       if t % cfg.log.stats_frequency == 0:
+# --- NEW: Evaluate S^2 ---
+        s2_mean_val, s2_var_val = np.nan, np.nan
+        if evaluate_s2_freq > 0 and t % evaluate_s2_freq == 0:
+            s2_data = pevaluate_s2(params, data)
+            s2_mean_val = np.asarray(s2_data.s2_mean[0])
+            s2_var_val = np.asarray(s2_data.s2_variance[0])
+            
+            logging.info('Step %05d: <S^2> = %03.6f +/- %03.6f', 
+                         t, s2_mean_val, np.sqrt(s2_var_val))
+        # -------------------------
         # write to train_stats
         writer_kwargs = {
             'step': t,
@@ -727,6 +744,8 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
             'ewvar': np.asarray(weighted_stats.variance),
             'pmove': np.asarray(pmove),
             'locstd': np.asarray(local_std),
+            's2_mean': s2_mean_val,  # <-- ADDED
+            's2_var': s2_var_val,    # <-- ADDED
         }
         writer.write(t, **writer_kwargs)
 

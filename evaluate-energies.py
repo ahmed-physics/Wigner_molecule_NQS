@@ -74,11 +74,11 @@ potential_type = "CoulombMoire"
 num_unit_cells = 4
 nspins = (6, 6)
 num_electrons = sum(nspins)
-me_eff_rel = 0.35 # in units of bare electron mass
-eps_inverse = 0.25 # inverse dielectric constant of surrounding dielectric
-moire_lattice_constant_nm = 8.0 # in nm
+me_eff_rel = 0.5 # in units of bare electron mass
+eps_inverse = 0.2 # inverse dielectric constant of surrounding dielectric
+moire_lattice_constant_nm = 10.0 # in nm
 moire_potential_strength_meV = 15 # in meV
-moire_potential_phi = 45 # potential shape angle in degrees
+moire_potential_phi = 15 # potential shape angle in degrees
 
 # Convert SI units to natural units
 energy_scale, moire_potential_strength, interaction_energy_scale = convert_moire_scales(me_eff_rel, eps_inverse, moire_lattice_constant_nm, moire_potential_strength_meV)
@@ -87,9 +87,37 @@ energy_scale, moire_potential_strength, interaction_energy_scale = convert_moire
 folder_name = f"results/2deg-CoulombMoire/{network_type}/el{nspins[0]}_{nspins[1]}_N{num_unit_cells}_V{np.round(moire_potential_strength,8)}_{moire_potential_phi}_U{np.round(interaction_energy_scale,8)}"
 train_data = load_csv_data(folder_name, "train_stats.csv")
 
+window = 1000
+
+# Calculate moving average
+train_data['energy_ma'] = (
+    train_data['energy']
+    .rolling(window=window, min_periods=window)
+    .mean()
+)
+
+
 fig, ax = plt.subplots(1,1, figsize = (7,5))
-ax.plot(train_data['step'][1000:], train_data['energy'][1000:] * energy_scale / num_electrons, marker='o', linestyle='-', linewidth=0.4, markersize=1, alpha=0.4)
+# Moving average
+ax.plot(
+    train_data['step'][1000:],
+    train_data['energy_ma'][1000:] * energy_scale / num_electrons,
+    linestyle='-', linewidth=2, color='crimson', label=f'{window}-step MA'
+)
+
 ax.set_xlabel("step")
 ax.set_ylabel("energy (meV)")
-plt.savefig('energy_plot.pdf', bbox_inches='tight')
+ax.legend()
+plt.tight_layout()
+plt.savefig('energy_av7.pdf', bbox_inches='tight')
 plt.close()
+
+
+
+
+
+#ax.plot(train_data['step'][1000:], train_data['energy'][1000:] * energy_scale / num_electrons, marker='o', linestyle='-', linewidth=0.4, markersize=1, alpha=0.4)
+#ax.set_xlabel("step")
+#ax.set_ylabel("energy (meV)")
+#plt.savefig('energy_plot.pdf', bbox_inches='tight')
+#plt.close()

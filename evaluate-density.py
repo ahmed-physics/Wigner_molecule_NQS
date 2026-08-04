@@ -111,13 +111,13 @@ potential_type = "CoulombMoire"
 network_type = "CustomPsiformer"
 ndim = 2
 num_unit_cells = 4
-nspins = (6, 6)
+nspins = (12, 0)
 num_electrons = sum(nspins)
-me_eff_rel = 0.35 # in units of bare electron mass
-eps_inverse = 0.25 # inverse dielectric constant of surrounding dielectric
-moire_lattice_constant_nm = 8.0 # in nm
+me_eff_rel = 0.5 # in units of bare electron mass
+eps_inverse = 0.2 # inverse dielectric constant of surrounding dielectric
+moire_lattice_constant_nm = 10.0 # in nm
 moire_potential_strength_meV = 15 # in meV
-moire_potential_phi = 45 # potential shape angle in degrees
+moire_potential_phi = 15 # potential shape angle in degrees
 
 # Convert SI units to natural units
 energy_scale, moire_potential_strength, interaction_energy_scale = convert_moire_scales(me_eff_rel, eps_inverse, moire_lattice_constant_nm, moire_potential_strength_meV)
@@ -131,7 +131,7 @@ rec = 2 * np.pi * np.linalg.inv(lat_vec)
 area = np.linalg.det(lat_vec)
 r_s = np.sqrt(area / sum(nspins) / np.pi)
 
-load_N_ckpts = 3 # number of latest checkpoints to load 
+load_N_ckpts = 10 # number of latest checkpoints to load 
 
 # load configurations from latest checkpoints
 positions_ckpt, spins_ckpt, filenames = get_positions_from_latest_npz_files(folder_name, load_N_ckpts)
@@ -142,26 +142,26 @@ positions_batch = np.array([lattices.send_positions_to_first_unit_cell(config, l
 # plot electron density
 fig_n, ax_n = plt.subplots(1, 1, figsize = (7, 5))
 positions_plot = np.reshape(np.array(positions_batch),(shape_pos[0]*shape_pos[1]*shape_pos[2]*shape_pos[3]//ndim, ndim))
-ax_n.scatter(positions_plot[:,0], positions_plot[:,1], color="tab:blue", s=1, alpha=0.2)
+ax_n.scatter(positions_plot[:,0], positions_plot[:,1], color="tab:blue", s=0.5, alpha=0.2)
 ax_n.set_xlabel("x / a_M")
 ax_n.set_ylabel("y / a_M")
 ax_n.set_title("Electron density")
-plt.savefig('density_plot.pdf', bbox_inches='tight')
+plt.savefig('density_plot7.pdf', bbox_inches='tight')
 plt.close()
 
 # compute density-density correlator \int dR <n(R + dr/2) n(R - dr/2)>
-relative_positions = []
-for cntc in range(len(positions_batch)):
-    config_up = positions_batch[cntc]
-    for cntup in range(len(config_up)):
-        relative_positions += np.subtract(config_up[cntup+1:], config_up[cntup]).tolist()
-relative_positions = lattices.send_positions_to_first_unit_cell(relative_positions, lat_vec, rec)
+#relative_positions = []
+#for cntc in range(len(positions_batch)):
+ #   config_up = positions_batch[cntc]
+  #  for cntup in range(len(config_up)):
+   #     relative_positions += np.subtract(config_up[cntup+1:], config_up[cntup]).tolist()
+#relative_positions = lattices.send_positions_to_first_unit_cell(relative_positions, lat_vec, rec)
 
 # plot density-density correlator
-fig_nn, ax_nn = plt.subplots(1, 1, figsize = (7, 5))
-ax_nn.scatter(relative_positions[:,0], relative_positions[:,1], color="tab:blue", s=1, alpha=0.03)
-ax_nn.set_xlabel("x / a_M")
-ax_nn.set_ylabel("y / a_M")
-ax_nn.set_title("Density-density correlation")
-plt.savefig('density_corr.pdf', bbox_inches='tight')
-plt.close()
+#fig_nn, ax_nn = plt.subplots(1, 1, figsize = (7, 5))
+#ax_nn.scatter(relative_positions[:,0], relative_positions[:,1], color="tab:blue", s=1, alpha=0.03)
+#ax_nn.set_xlabel("x / a_M")
+#ax_nn.set_ylabel("y / a_M")
+#ax_nn.set_title("Density-density correlation")
+#plt.savefig('density_corr.pdf', bbox_inches='tight')
+#plt.close()

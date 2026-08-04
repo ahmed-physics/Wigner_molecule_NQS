@@ -99,13 +99,13 @@ if len(argv) >= 2:
     moire_potential_phi = float(argv[7]) # potential shape angle in degrees
     network_type = argv[8]
 else:
-    nspins = [6, 6]
-    num_unit_cells = 4
-    me_eff_rel = 0.35 # in units of bare electron mass
-    eps_inverse = 0.25 # inverse dielectric constant of surrounding dielectric
-    moire_lattice_constant_nm = 8.0 # in nm
-    moire_potential_strength_meV = 15 # in meV
-    moire_potential_phi = 45 # potential shape angle in degrees
+    nspins = [18, 18]
+    num_unit_cells = 12
+    me_eff_rel = 0.5 #0.9 # in units of bare electron mass
+    eps_inverse = 0.2  #0.2 # inverse dielectric constant of surrounding dielectric
+    moire_lattice_constant_nm = 10.0 #9.8 # in nm
+    moire_potential_strength_meV = 15.0 #10.3 # in meV
+    moire_potential_phi = 45 #20 # potential shape angle in degrees
     network_type = "CustomPsiformer" # "SlaterNet", "CustomPsiformer"
 
 # Convert SI units to natural units
@@ -150,26 +150,29 @@ cfg.batch_size = 1024
 # learning rate parameters
 cfg.optim.optimizer  = 'kfac'
 cfg.optim.objective  = 'vmc'
-cfg.optim.iterations = 150000
-cfg.optim.lr.rate    = 0.1
-cfg.optim.lr.delay   = 20000
+cfg.optim.iterations = 140000
+cfg.optim.lr.rate    = 0.01
+cfg.optim.lr.delay   = 10000
 cfg.optim.lr.decay   = 1.0
 
 # logging parameters
-cfg.log.save_frequency = 5.0 # minutes
+cfg.log.save_frequency = 2.0 # minutes
 
 # mcmc parameters
 cfg.mcmc.burn_in    = 300
 cfg.mcmc.init_width = 1.0
-cfg.mcmc.move_width = 0.2
+cfg.mcmc.move_width = 0.1
 cfg.mcmc.steps      = 30
 cfg.mcmc.move_width_updater = 'adaptive'
 
 # general network parameters
 cfg.network.complex = True # complex wavefunction work better for pbc systems
 cfg.network.determinants = 4
-cfg.network.jastrow = "NONE"
-cfg.network.jastrow_kwargs = {'ndim':cfg.system.ndim, 'interaction_strength': 1.0}
+cfg.network.jastrow = "SIMPLE_EE"
+cfg.network.jastrow_kwargs = {'ndim':cfg.system.ndim, 'interaction_strength': interaction_energy_scale}
+
+cfg.debug.check_nan = True
+cfg.optim.reset_if_nan = True
 
 # network architecture parameters
 # Code to run Psiformer
@@ -207,6 +210,23 @@ writers.rename_file("device_info", folder_name, file_extension="log")
 custom_logging.log_device_info(folder_name + "/device_info.log")
 writers.rename_file("config", folder_name, file_extension="json")
 custom_logging.save_config_dict_as_json(cfg, cfg.log.save_path + '/config.json')
+
+# --------------------------- 
+# INFERENCE OVERRIDES
+# ---------------------------
+# Setting optimizer to 'none' tells train.py to load the latest checkpoint
+# from folder_name and skip parameter updates.
+#cfg.optim.optimizer = 'none'
+
+# Number of inference samples to take (adjust based on required precision)
+#cfg.optim.iterations = 40000  
+
+# Evaluate S^2 every 10 steps to avoid autocorrelation and save time
+cfg.log.evaluate_s2_frequency = 0 
+
+# Optional: You can safely lower burn-in since you are loading an optimized checkpoint
+#cfg.mcmc.burn_in = 100 
+# ---------------------------
 
 t_init = time()
 # --------------------------- train ---------------------------

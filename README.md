@@ -47,4 +47,4 @@ See the [PeriodicWave repository](https://github.com/mg607/PeriodicWave) for the
 
 ## License
 
-Apache-2.0, consistent with upstream PeriodicWave and FermiNet. See [LICENSE](LICENSE).
+Apache-2.0. See LICENSE.

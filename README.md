@@ -31,11 +31,7 @@ Installation follows the same steps as upstream PeriodicWave:
 
 See the [PeriodicWave README](https://github.com/mg607/PeriodicWave) for the full, verified install walkthrough — the underlying package setup is unchanged.
 
-## Usage
 
-- Run a spin ground-state search: `[your command here]`
-- Evaluate S²: `[your script/command here]`
-- Analyze charge/spin density: open `[notebook filename].ipynb`
 
 ## Credits
 

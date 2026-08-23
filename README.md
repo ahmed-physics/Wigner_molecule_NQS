@@ -9,7 +9,7 @@ This project applies the [PeriodicWave](https://github.com/mg607/PeriodicWave) n
 Building on the PeriodicWave/FermiNet framework, this repository adds:
 
 - **S² operator evaluation** — computes the total-spin expectation value of the trained wavefunction, used to identify the spin quantum number of candidate ground states.
-- **Charge and spin density analysis notebook** — a Jupyter notebook (`[notebook filename]`) that loads trained checkpoints and visualizes charge density and spin density across the simulation cell.
+- **Charge and spin density analysis notebook** — a Jupyter notebook (`Charge_spin_density.ipynb`) that loads trained checkpoints and visualizes charge density and spin density across the simulation cell.
 
 ## Background
 

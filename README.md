@@ -1,6 +1,6 @@
 # Wigner Molecular Crystals: Spin Ground State Search
 
-**Status: 🚧 Work in progress**
+
 
 This project applies the [PeriodicWave](https://github.com/mg607/PeriodicWave) neural-network variational Monte Carlo (VMC) framework to **Wigner molecular crystals**, with the goal of identifying the **spin ground state** of these systems.
 

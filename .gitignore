@@ -6,3 +6,4 @@ results/
 *.pdf
 *.txt
 *.ipynb
+periodicwave/configs/run_2deg_triangular_potential.py

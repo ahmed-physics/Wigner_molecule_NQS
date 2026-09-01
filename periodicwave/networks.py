@@ -546,9 +546,10 @@ def make_orbitals(
 
     # Jastrow factor (pre-determinant for compatibility with pretraining)
     if jastrow_apply is not None:
-      jastrow = jnp.exp(jastrow_apply(r_ee, params['jastrow'], nspins) / n_total)
-      orbitals = [o * jastrow for o in orbitals]
+      log_jastrow = jastrow_apply(r_ee, params['jastrow'], nspins)
+    else:
+      log_jastrow = jnp.zeros((), dtype=orbital.real.dtype)
 
-    return orbitals
+    return orbitals, log_jastrow    
 
   return init, apply

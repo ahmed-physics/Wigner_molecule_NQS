@@ -467,9 +467,9 @@ def make_fermi_net(
       Output of antisymmetric neural network in log space, i.e. a tuple of sign
       of and log absolute value of the network evaluated at x.
     """
-    orbitals = orbitals_apply(params, pos, spins, atoms, charges)
-    result = network_blocks.logdet_matmul(orbitals)
-    return result
+    orbitals, log_jastrow = orbitals_apply(params, pos, spins, atoms, charges)
+    phase, log_abs = network_blocks.logdet_matmul(orbitals)
+    return phase, log_abs + log_jastrow
 
   return networks.Network(
       options=options,

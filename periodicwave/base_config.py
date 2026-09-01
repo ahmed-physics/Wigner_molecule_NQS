@@ -44,6 +44,10 @@ def default() -> ml_collections.ConfigDict:
               'rate':  0.05,  # learning rate
               'decay': 1.0,  # exponent of learning rate decay
               'delay': 10000.0,  # term that sets the scale of the rate decay
+              # Length (in iterations) of the linear learning rate warmup.
+              # eta ramps 0 -> rate over this many steps before the decay
+              # above takes over. 0.0 disables the warmup entirely.
+              'warmup': 0.0,
           },
           # If greater than zero, scale (at which to clip local energy) in units
           # of the mean deviation from the mean.

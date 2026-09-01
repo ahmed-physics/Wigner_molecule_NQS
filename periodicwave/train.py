@@ -550,9 +550,40 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
   # --------------------------------
 
   # Compute the learning rate
+  # Read once, at trace time, so configs predating the `warmup` key still work.
+  lr_warmup = float(cfg.optim.lr.get('warmup', 0.0))
+  logging.info(
+      'Learning rate schedule: rate=%g warmup=%g delay=%g decay=%g',
+      cfg.optim.lr.rate, lr_warmup, cfg.optim.lr.delay, cfg.optim.lr.decay)
+  if lr_warmup > 0 and t_init > 0 and opt_state_ckpt is None:
+    logging.warning(
+        'Restarting at iteration %d with a fresh optimizer state: the learning '
+        'rate warmup will restart from zero.', t_init)
+
   def learning_rate_schedule(t_: jnp.ndarray) -> jnp.ndarray:
-    return cfg.optim.lr.rate * jnp.power(
-        (1.0 / (1.0 + (t_/cfg.optim.lr.delay))), cfg.optim.lr.decay)
+    """Linear warmup over `warmup` steps, then (1 + t/delay)^(-decay) decay.
+
+    The decay tail is the Robbins-Monro form: with decay = 1 the step sizes
+    satisfy sum(eta) = inf and sum(eta^2) < inf, so the iterates can still
+    travel an unbounded distance while the accumulated Monte Carlo noise stays
+    finite. The warmup protects the first few thousand iterations, during which
+    the KFAC curvature estimate is still an unconverged EMA, the walkers are
+    tracking a rapidly changing |Psi|^2, and the local energies are heavy
+    tailed. Large steps there commit the ansatz to whichever basin the noisy
+    early gradients happen to favour.
+    """
+    if lr_warmup <= 0.0:
+      return cfg.optim.lr.rate * jnp.power(
+          (1.0 / (1.0 + (t_/cfg.optim.lr.delay))), cfg.optim.lr.decay)
+    # The decay clock starts when the ramp finishes, so `rate` is the true peak
+    # learning rate (reached at t = warmup) and the amplitude of the 1/t tail,
+    # rate * delay, is independent of the warmup length. Lengthening the warmup
+    # therefore does not raise the late-time learning rate.
+    ramp = jnp.minimum(1.0, (t_ + 1.0) / lr_warmup)
+    t_decay = jnp.maximum(0.0, t_ - lr_warmup)
+    decay = cfg.optim.lr.rate * jnp.power(
+        (1.0 / (1.0 + (t_decay/cfg.optim.lr.delay))), cfg.optim.lr.decay)
+    return ramp * decay
 
   # Construct and setup optimizer
   if cfg.optim.optimizer == 'none':

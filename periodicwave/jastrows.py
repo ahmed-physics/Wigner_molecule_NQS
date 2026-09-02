@@ -77,43 +77,51 @@ def _cusp_factors(
 def _jastrow_ee(
     r_ee: jnp.ndarray,
     params: ParamTree,
-    nspins: tuple[int, int],
+    spins: jnp.ndarray,
     jastrow_fun: Callable[[jnp.ndarray, float, jnp.ndarray], jnp.ndarray],
     ndim: int = 3,
     interaction_strength: float = 1.0,
 ) -> jnp.ndarray:
   """Jastrow factor for electron-electron cusps.
 
-  NOTE: nspins is used to split r_ee into same-spin and opposite-spin blocks by
-  electron index, which assumes the standard ordering of alpha electrons before
-  beta electrons. The actual (n_up, n_down) must be passed here; passing a
-  merged tuple such as (n_total, 0) silently classifies every pair as
-  parallel-spin and drops the antiparallel channel entirely.
+  Pairs are classified as parallel or antiparallel from the actual per-walker
+  spins array, sigma_i sigma_j > 0, rather than from the electron index.
+
+  NOTE: this used to take nspins and split r_ee into blocks by index, which
+  assumes alpha electrons are always ordered before beta electrons. That
+  assumption holds only while the sampler never permutes spins. With the
+  sector-preserving spin-swap moves in mcmc.py it is false: the trunk sees the
+  permuted spins but an index-based Jastrow does not, so Psi stops being
+  antisymmetric under simultaneous exchange of (r_i, sigma_i) and a spin swap no
+  longer gives the same |Psi| as the corresponding position swap.
+
+  Args:
+    r_ee: electron-electron distances, shape (nelectron, nelectron, 1).
+    params: Jastrow parameters, keys 'ee_par' and 'ee_anti'.
+    spins: per-electron spins, shape (nelectron,); only the sign is used.
+    jastrow_fun: pair function f(r, cusp, alpha).
+    ndim: spatial dimension.
+    interaction_strength: Coulomb strength U setting the cusp factors.
   """
   cusp_parallel, cusp_anti = _cusp_factors(ndim, interaction_strength)
 
-  r_ees = [
-      jnp.split(r, nspins[0:1], axis=1)
-      for r in jnp.split(r_ee, nspins[0:1], axis=0)
-  ]
-  r_ees_parallel = jnp.concatenate([
-      r_ees[0][0][jnp.triu_indices(nspins[0], k=1)],
-      r_ees[1][1][jnp.triu_indices(nspins[1], k=1)],
-  ])
+  n = spins.shape[-1]
+  r = jnp.reshape(r_ee, (n, n))
 
-  if r_ees_parallel.size > 0:
-    jastrow_ee_par = jnp.sum(
-        jastrow_fun(r_ees_parallel, cusp_parallel, params['ee_par']) 
-    )
-  else:
-    jastrow_ee_par = jnp.asarray(0.0)
+  # The diagonal of r_ee is exactly zero. Shift it off zero so that jastrow_fun
+  # cannot evaluate 0/0 should alpha ever reach 0; these entries are masked out
+  # of both sums below, so the value and the gradients are unaffected.
+  r = r + jnp.eye(n, dtype=r.dtype)
 
-  # NOTE: .size, not .shape[0]: the latter is n_up, which is non-zero even for a
-  # fully polarised system with no antiparallel pairs at all.
-  if r_ees[0][1].size > 0:
-    jastrow_ee_anti = jnp.sum(jastrow_fun(r_ees[0][1], cusp_anti, params['ee_anti'])) 
-  else:
-    jastrow_ee_anti = jnp.asarray(0.0)
+  parallel = (spins[:, None] * spins[None, :]) > 0
+  upper = jnp.triu(jnp.ones((n, n), dtype=bool), k=1)
+
+  u_par = jastrow_fun(r, cusp_parallel, params['ee_par'])
+  u_anti = jastrow_fun(r, cusp_anti, params['ee_anti'])
+
+  zero = jnp.zeros((), dtype=u_par.dtype)
+  jastrow_ee_par = jnp.sum(jnp.where(upper & parallel, u_par, zero))
+  jastrow_ee_anti = jnp.sum(jnp.where(upper & ~parallel, u_anti, zero))
 
   return jastrow_ee_anti + jastrow_ee_par
 
@@ -152,10 +160,10 @@ def make_simple_ee_jastrow(ndim: int = 3, interaction_strength: float = 1.0) -> 
   def apply(
       r_ee: jnp.ndarray,
       params: ParamTree,
-      nspins: tuple[int, int],
+      spins: jnp.ndarray,
   ) -> jnp.ndarray:
     """Jastrow factor for electron-electron cusps."""
-    return _jastrow_ee(r_ee, params, nspins, jastrow_fun=simple_ee_cusp_fun, 
+    return _jastrow_ee(r_ee, params, spins, jastrow_fun=simple_ee_cusp_fun, 
                        ndim=ndim, interaction_strength=interaction_strength)
 
   return init, apply

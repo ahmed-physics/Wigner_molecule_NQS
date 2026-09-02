@@ -546,7 +546,11 @@ def make_orbitals(
 
     # Jastrow factor (pre-determinant for compatibility with pretraining)
     if jastrow_apply is not None:
-      log_jastrow = jastrow_apply(r_ee, params['jastrow'], nspins)
+      # spins, not nspins: the Jastrow must classify pairs from the actual spin
+      # configuration of this walker, otherwise it does not follow the spin
+      # permutations applied by the sampler and Psi loses antisymmetry in the
+      # generalized coordinates (r_i, sigma_i). See jastrows._jastrow_ee.
+      log_jastrow = jastrow_apply(r_ee, params['jastrow'], spins)
     else:
       log_jastrow = jnp.zeros((), dtype=orbital.real.dtype)
 

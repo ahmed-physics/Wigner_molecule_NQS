@@ -132,6 +132,13 @@ def default() -> ml_collections.ConfigDict:
           # Number of steps after which to update the adaptive MCMC step size
           'adapt_frequency': 100,
           'blocks': 1,  # Number of blocks to split the MCMC sampling into
+          # Sector-preserving spin updates (Sz conserved). 0 disables them and
+          # reproduces the previous sampler exactly. Each step is one extra
+          # batched forward pass; the mean number of swapped pairs per step is
+          # p_swap * nelec / 2, truncated at max_swaps.
+          'spin_steps': 0,
+          'p_swap': 0.03,
+          'max_swaps': 4,
       },
       'network': {
           'network_type': 'CustomPsiformer',  # One of 'SlaterNet' or 'CustomPsiformer'.

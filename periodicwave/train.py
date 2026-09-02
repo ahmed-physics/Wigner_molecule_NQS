@@ -516,6 +516,9 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
       steps=cfg.mcmc.steps,
       ndim=cfg.system.ndim,
       blocks=cfg.mcmc.blocks,
+      spin_steps=cfg.mcmc.get('spin_steps', 0),
+      p_swap=cfg.mcmc.get('p_swap', 0.03),
+      max_swaps=cfg.mcmc.get('max_swaps', 4),
   )
 
   # Construct loss and optimizer
@@ -545,7 +548,8 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
 # --- NEW: Setup S^2 Evaluator ---
   evaluate_s2_freq = cfg.log.get('evaluate_s2_frequency', 0)
   if evaluate_s2_freq > 0:
-      local_s2_fn = observables.make_local_spin_squared(signed_network, nspins)
+      local_s2_fn = observables.make_local_spin_squared(
+          signed_network, nspins, complex_output=use_complex)
       pevaluate_s2 = constants.pmap(observables.make_s2_evaluation(local_s2_fn))
   # --------------------------------
 

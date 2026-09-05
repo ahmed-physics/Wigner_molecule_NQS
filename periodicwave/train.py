@@ -128,6 +128,7 @@ StepResults = Tuple[
     jnp.ndarray,
     qmc_loss_functions.AuxiliaryLossData,
     jnp.ndarray,
+    jnp.ndarray,
 ]
 
 
@@ -151,7 +152,7 @@ class Step(Protocol):
       mcmc_width: width of MCMC move proposal. See mcmc.make_mcmc_step.
 
     Returns:
-      Tuple of (data, params, state, loss, aux_data, pmove).
+      Tuple of (data, params, state, loss, aux_data, pmove, pmove_spin).
         data: Updated MCMC configurations drawn from the network given the
           *input* network parameters.
         params: updated network parameters after the gradient update.
@@ -160,7 +161,11 @@ class Step(Protocol):
           the entire set of MCMC configurations.
         aux_data: AuxiliaryLossData object also returned from evaluating the
           loss of the system.
-        pmove: probability that a proposed MCMC move was accepted.
+        pmove: probability that a proposed MCMC position move was
+          accepted. Computed before the spin block runs.
+        pmove_spin: fraction of proposed spin swaps that were accepted.
+          Walkers drawing zero pairs are excluded from the ratio. Zero when
+          cfg.mcmc.spin_steps is 0.
     """
 
 
@@ -244,7 +249,7 @@ def make_training_step(
     """A full update iteration (except for KFAC): MCMC steps + optimization."""
     # MCMC loop
     mcmc_key, loss_key = jax.random.split(key, num=2)
-    data, pmove = mcmc_step(params, data, mcmc_key, mcmc_width)
+    data, pmove, pmove_spin = mcmc_step(params, data, mcmc_key, mcmc_width)
 
     # Optimization step
     new_params, new_state, loss, aux_data = optimizer_step(params,
@@ -258,7 +263,7 @@ def make_training_step(
       new_state = jax.lax.cond(jnp.isnan(loss),
                                lambda: state,
                                lambda: new_state)
-    return data, new_params, new_state, loss, aux_data, pmove
+    return data, new_params, new_state, loss, aux_data, pmove, pmove_spin
 
   return step
 
@@ -305,7 +310,7 @@ def make_kfac_training_step(
 
     # MCMC loop
     mcmc_keys, loss_keys = kfac_jax.utils.p_split(key)
-    data, pmove = mcmc_step(params, data, mcmc_keys, mcmc_width)
+    data, pmove, pmove_spin = mcmc_step(params, data, mcmc_keys, mcmc_width)
 
     if reset_if_nan:
       old_params = copy_tree(params)
@@ -324,7 +329,8 @@ def make_kfac_training_step(
     if reset_if_nan and jnp.any(jnp.isnan(stats['loss'])):
       new_params = old_params
       new_state = old_state
-    return data, new_params, new_state, stats['loss'], stats['aux'], pmove
+    return (data, new_params, new_state, stats['loss'], stats['aux'],
+            pmove, pmove_spin)
 
   return step
 
@@ -501,7 +507,8 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
     mcmc_width_ckpt = None
 
   # Set up logging and observables
-  train_schema = ['step', 'energy', 'ewmean', 'ewvar', 'pmove', 'locstd', 's2_mean', 's2_var']
+  train_schema = ['step', 'energy', 'ewmean', 'ewvar', 'pmove', 'pmove_spin',
+                  'locstd', 's2_mean', 's2_var']
 
   # Initialisation done. We now want to have different PRNG streams on each
   # device. Shard the key over devices
@@ -519,6 +526,7 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
       spin_steps=cfg.mcmc.get('spin_steps', 0),
       p_swap=cfg.mcmc.get('p_swap', 0.03),
       max_swaps=cfg.mcmc.get('max_swaps', 4),
+      return_spin_pmove=True,
   )
 
   # Construct loss and optimizer
@@ -717,7 +725,7 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
     num_resets = 0  # used if reset_if_nan is true
     for t in range(t_init, cfg.optim.iterations):
       sharded_key, subkeys = kfac_jax.utils.p_split(sharded_key)
-      data, params, opt_state, loss, aux_data, pmove = step(
+      data, params, opt_state, loss, aux_data, pmove, pmove_spin = step(
           data,
           params,
           opt_state,
@@ -731,6 +739,7 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
           alpha=0.1, observation=loss, previous_stats=weighted_stats)
 
       pmove = pmove[0]
+      pmove_spin = pmove_spin[0]
 
       # variance = aux_data.variance[0] 
       local_std = jnp.sqrt(aux_data.variance[0])
@@ -778,6 +787,7 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
             'ewmean': np.asarray(weighted_stats.mean),
             'ewvar': np.asarray(weighted_stats.variance),
             'pmove': np.asarray(pmove),
+            'pmove_spin': np.asarray(pmove_spin),
             'locstd': np.asarray(local_std),
             's2_mean': s2_mean_val,  # <-- ADDED
             's2_var': s2_var_val,    # <-- ADDED
@@ -786,8 +796,9 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
 
         # log training data
         logging_str = ('Step %05d: '
-                       '%03.4f E_h, exp. variance=%03.4f E_h^2, pmove=%0.2f')
-        logging_args = t, loss, weighted_stats.variance, pmove
+                       '%03.4f E_h, exp. variance=%03.4f E_h^2, pmove=%0.2f, '
+                       'pmove_spin=%0.3f')
+        logging_args = (t, loss, weighted_stats.variance, pmove, pmove_spin)
         logging.info(logging_str, *logging_args)
         
       # Checkpointing every cfg.log.save_frequency minutes and at final iteration

@@ -98,7 +98,7 @@ def make_local_spin_squared(
             _log_psi(swap_phases, swap_logabs) - _log_psi(orig_phase, orig_logabs)
         )
 
-        return constant_term - jnp.sum(ratios)
+        return constant_term + jnp.sum(ratios)
 
     return _s2_over_f
 
